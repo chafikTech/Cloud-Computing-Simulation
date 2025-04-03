@@ -11,7 +11,7 @@ This project is a cloud computing simulation and visualization tool built using 
 ## 🎓 Academic Information
 - **University**: Université Sultan Moulay Slimane
 - **School**: École Supérieure de Technologie - Fkih Ben Salah
-- **Course**: Big Data
+- **licence **: Big Data
 - **Professor**: Pr. M. HAMIME
 - **Academic Year**: 2023/2024
 
