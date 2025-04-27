@@ -125,6 +125,18 @@
             </div>
         </div>
 
+        <div>
+            <label for="providerSelect">Select Cloud Provider:</label>
+            <select id="providerSelect" onchange="updatePriceChart()">
+                <option value="aws">AWS</option>
+                <option value="azure">Azure</option>
+                <option value="gcp">Google Cloud</option>
+                <option value="ibm">IBM Cloud</option>
+            </select>
+        </div>
+
+        <canvas id="priceChart"></canvas>
+
         <!-- Cloudlet Table -->
         <div class="bg-white shadow rounded-lg p-6 mb-6">
             <h2 class="text-xl font-semibold mb-4">Cloudlet Results</h2>
@@ -171,199 +183,7 @@
 </div>
 
 
-<script>
-    // Store chart objects to update them later
-    let resourceChart = null;
-    let executionChart = null;
-
-    // Base API URL - change this to match your backend
-    const API_BASE_URL = 'http://localhost:8080/api/cloudsim';
-
-    // Initialize page
-    document.addEventListener('DOMContentLoaded', function () {
-        // Set up event listeners
-        document.getElementById('runBtn').addEventListener('click', runSimulation);
-
-        // Initialize empty charts
-        initCharts();
-    });
-
-    function initCharts() {
-        // Resource Distribution Chart
-        const resourceCtx = document.getElementById('resourceChart').getContext('2d');
-        resourceChart = new Chart(resourceCtx, {
-            type: 'bar',
-            data: {
-                labels: [],
-                datasets: [
-                    {
-                        label: 'PEs',
-                        data: [],
-                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'RAM (GB)',
-                        data: [],
-                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-
-        // Cloudlet Execution Chart
-        const executionCtx = document.getElementById('executionChart').getContext('2d');
-        executionChart = new Chart(executionCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    {
-                        label: 'Execution Time (s)',
-                        data: [],
-                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1,
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-
-    async function runSimulation() {
-        document.getElementById('loadingIndicator').classList.remove('hidden');
-
-        const params = {
-            datacenters: document.getElementById('datacenters').value,
-            hostsPerDc: document.getElementById('hostsPerDc').value,
-            vms: document.getElementById('vms').value,
-            cloudlets: document.getElementById('cloudlets').value
-        };
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/run?datacenters=${params.datacenters}&hostsPerDc=${params.hostsPerDc}&vms=${params.vms}&cloudlets=${params.cloudlets}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            updateUI(data);
-            fetchAndUpdateStats();
-        } catch (error) {
-            console.error('Simulation failed:', error);
-        } finally {
-            document.getElementById('loadingIndicator').classList.add('hidden');
-        }
-    }
-
-    async function fetchAndUpdateStats() {
-        try {
-            const datacenterResponse = await fetch(`${API_BASE_URL}/datacenter-stats`);
-            const cloudletResponse = await fetch(`${API_BASE_URL}/cloudlet-stats`);
-            const summaryResponse = await fetch(`${API_BASE_URL}/summary`);
-
-            const datacenterStats = await datacenterResponse.json();
-            const cloudletStats = await cloudletResponse.json();
-            const summary = await summaryResponse.json();
-
-            updateUI(summary);
-            updateCharts(datacenterStats, cloudletStats);
-            populateTables(datacenterStats, cloudletStats);
-        } catch (error) {
-            console.error('Failed to fetch stats:', error);
-        }
-    }
-
-    function updateUI(summary) {
-        console.log("Summary Data:", summary);
-
-        if (summary && summary.avgExecutionTime !== undefined) {
-            document.getElementById('numDatacenters').textContent = summary.numDatacenters;
-            document.getElementById('numHosts').textContent = summary.numHosts;
-            document.getElementById('numVms').textContent = summary.numVms;
-            document.getElementById('numCloudlets').textContent = summary.totalCloudlets;
-            document.getElementById('completedCloudlets').textContent = summary.completedCloudlets;
-            document.getElementById('avgExecTime').textContent = summary.avgExecutionTime.toFixed(2);
-            document.getElementById('avgWaitTime').textContent = summary.avgWaitTime.toFixed(2);
-
-            document.getElementById('summaryContainer').classList.remove('hidden');
-        } else {
-            console.error("Summary data is missing expected properties:", summary);
-        }
-    }
-
-    function updateCharts(datacenterStats, cloudletStats) {
-        resourceChart.data.labels = datacenterStats.map(dc => `Datacenter ${dc.id}`);
-        resourceChart.data.datasets[0].data = datacenterStats.map(dc => dc.totalPes);
-        resourceChart.data.datasets[1].data = datacenterStats.map(dc => dc.totalRam / (1024 * 1024)); // Convert to GB
-        resourceChart.update();
-
-        executionChart.data.labels = cloudletStats.map(c => `Cloudlet ${c.id}`);
-        executionChart.data.datasets[0].data = cloudletStats.map(c => c.executionTime);
-        executionChart.update();
-    }
-
-    function populateTables(datacenterStats, cloudletStats) {
-        const datacenterTableBody = document.getElementById('datacenterTableBody');
-        const cloudletTableBody = document.getElementById('cloudletTableBody');
-
-        datacenterTableBody.innerHTML = '';
-        cloudletTableBody.innerHTML = '';
-
-        datacenterStats.forEach(dc => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${dc.id}</td>
-                <td>${dc.numHosts}</td>
-                <td>${dc.totalPes}</td>
-                <td>${(dc.totalRam / (1024 * 1024)).toFixed(2)}</td>
-                <td>${(dc.totalStorage / (1024 * 1024 * 1024)).toFixed(2)}</td>
-                <td>${(dc.totalBandwidth / (1024 * 1024)).toFixed(2)}</td>
-            `;
-            datacenterTableBody.appendChild(row);
-        });
-
-        cloudletStats.forEach(cl => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${cl.id}</td>
-                <td>${cl.vmId}</td>
-                <td>${cl.datacenterId}</td>
-                <td>${cl.pes}</td>
-                <td>${cl.length}</td>
-                <td>${cl.startTime.toFixed(2)}</td>
-                <td>${cl.finishTime.toFixed(2)}</td>
-                <td>${cl.executionTime.toFixed(2)}</td>
-                <td>${cl.status}</td>
-            `;
-            cloudletTableBody.appendChild(row);
-        });
-    }
-</script>
+<script src="main.js"></script>
 </body>
 
 </html>

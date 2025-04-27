@@ -39,6 +39,59 @@ public class CloudSimPlusSimulator {
 
     private SimulationResult results;
 
+    // Constants for realistic cloud resource sizes (in MB unless specified)
+    private static final int MIN_HOST_CORES = 16;    // Minimum cores per host (modern servers)
+    private static final int MAX_HOST_CORES = 128;   // Maximum cores (high-end servers)
+    private static final int MIN_HOST_MIPS = 3000;   // Minimum MIPS per core
+    private static final int MAX_HOST_MIPS = 5000;   // Maximum MIPS per core
+
+    // RAM in MB (32GB to 1TB)
+    private static final int MIN_HOST_RAM = 32 * 1024;
+    private static final int MAX_HOST_RAM = 1024 * 1024;
+    private static final int RAM_INCREMENT = 32 * 1024;     // 32GB increments
+
+    // Storage in MB (1TB to 16TB)
+    private static final long MIN_HOST_STORAGE = 1024L * 1024L;
+    private static final long MAX_HOST_STORAGE = 16 * 1024L * 1024L;
+    private static final long STORAGE_INCREMENT = 1024L * 1024L;     // 1TB increments
+
+    // Bandwidth in Mbps (10Gbps to 100Gbps converted to Mbps)
+    private static final long MIN_HOST_BW = 10 * 1000;
+    private static final long MAX_HOST_BW = 100 * 1000;
+    private static final long BW_INCREMENT = 10 * 1000;    // 10Gbps increments
+
+    // VM resources
+    private static final int MIN_VM_CORES = 1;
+    private static final int MAX_VM_CORES = 32;
+    private static final int MIN_VM_MIPS = 2000;
+    private static final int MAX_VM_MIPS = 4500;
+
+    // RAM in MB (1GB to 128GB)
+    private static final int MIN_VM_RAM = 1024;
+    private static final int MAX_VM_RAM = 128 * 1024;
+    private static final int VM_RAM_INCREMENT = 1024;  // 1GB increments
+
+    // Storage in MB (20GB to 2TB)
+    private static final long MIN_VM_STORAGE = 20 * 1024L;
+    private static final long MAX_VM_STORAGE = 2 * 1024L * 1024L;
+    private static final long VM_STORAGE_INCREMENT = 20 * 1024L;
+
+    // Bandwidth in Mbps (100Mbps to 10Gbps converted to Mbps)
+    private static final long MIN_VM_BW = 100;
+    private static final long MAX_VM_BW = 10 * 1000;
+    private static final long VM_BW_INCREMENT = 100;
+
+    // Cloudlet resources (representing real workloads)
+    private static final long MIN_CLOUDLET_LENGTH = 50000;  // More realistic task sizes
+    private static final long MAX_CLOUDLET_LENGTH = 5000000;
+    private static final long CLOUDLET_LENGTH_INCREMENT = 50000;
+
+    // Cloudlet file sizes in MB (100MB to 5GB input, 50MB to 2GB output)
+    private static final long MIN_CLOUDLET_FILE_SIZE = 100;
+    private static final long MAX_CLOUDLET_FILE_SIZE = 5 * 1024;
+    private static final long MIN_CLOUDLET_OUTPUT_SIZE = 50;
+    private static final long MAX_CLOUDLET_OUTPUT_SIZE = 2 * 1024;
+
     public CloudSimPlusSimulator(SimulationConfig config) {
         this.config = config;
         this.random = new RandomGenerator(config.getRandomSeed());
@@ -67,11 +120,11 @@ public class CloudSimPlusSimulator {
     private Datacenter createDatacenter(int id) {
         List<Host> hostList = new ArrayList<>();
         for (int i = 0; i < config.getHostsPerDatacenter(); i++) {
-            int numPes = random.nextInt(8, 17);
-            int mips = random.nextInt(1000, 3000);
-            int ram = random.nextInt(16384, 81920, 8192);
-            long storage = random.nextLong(1000000, 6000000, 500000);
-            long bw = random.nextLong(10000, 60000, 10000);
+            int numPes = random.nextInt(MIN_HOST_CORES, MAX_HOST_CORES + 1);
+            int mips = random.nextInt(MIN_HOST_MIPS, MAX_HOST_MIPS + 1);
+            int ram = random.nextInt(MIN_HOST_RAM, MAX_HOST_RAM + 1, RAM_INCREMENT);
+            long storage = random.nextLong(MIN_HOST_STORAGE, MAX_HOST_STORAGE + 1, STORAGE_INCREMENT);
+            long bw = random.nextLong(MIN_HOST_BW, MAX_HOST_BW + 1, BW_INCREMENT);
 
             Host host = createHost(numPes, mips, ram, storage, bw);
             hostList.add(host);
@@ -97,11 +150,11 @@ public class CloudSimPlusSimulator {
     private void createVms() {
         vmList = new ArrayList<>();
         for (int i = 0; i < config.getNumberOfVms(); i++) {
-            int pes = random.nextInt(2, 7);
-            int mips = random.nextInt(800, 2400);
-            int ram = random.nextInt(2048, 16384, 2048);
-            long storage = random.nextLong(10000, 110000, 10000);
-            long bw = random.nextLong(1000, 6000, 1000);
+            int pes = random.nextInt(MIN_VM_CORES, MAX_VM_CORES + 1);
+            int mips = random.nextInt(MIN_VM_MIPS, MAX_VM_MIPS + 1);
+            int ram = random.nextInt(MIN_VM_RAM, MAX_VM_RAM + 1, VM_RAM_INCREMENT);
+            long storage = random.nextLong(MIN_VM_STORAGE, MAX_VM_STORAGE + 1, VM_STORAGE_INCREMENT);
+            long bw = random.nextLong(MIN_VM_BW, MAX_VM_BW + 1, VM_BW_INCREMENT);
 
             Vm vm = new VmSimple(mips, pes)
                     .setRam(ram)
@@ -119,19 +172,20 @@ public class CloudSimPlusSimulator {
         cloudletList = new ArrayList<>();
 
         for (int i = 0; i < config.getNumberOfCloudlets(); i++) {
-            long length = random.nextLong(5000, 25000, 1000);
-            int pes = random.nextInt(1, 5);
-            long fileSize = random.nextLong(500, 2500);
-            long outputSize = random.nextLong(300, 1300);
+            long length = random.nextLong(MIN_CLOUDLET_LENGTH, MAX_CLOUDLET_LENGTH + 1, CLOUDLET_LENGTH_INCREMENT);
+            int pes = random.nextInt(1, 9);  // Up to 8 cores per task
+            long fileSize = random.nextLong(MIN_CLOUDLET_FILE_SIZE, MAX_CLOUDLET_FILE_SIZE + 1);
+            long outputSize = random.nextLong(MIN_CLOUDLET_OUTPUT_SIZE, MAX_CLOUDLET_OUTPUT_SIZE + 1);
 
-            UtilizationModelDynamic cpuUtilization = new UtilizationModelDynamic(0.2)
-                    .setMaxResourceUtilization(0.8 + (random.nextDouble() * 0.2));
+            // More realistic utilization patterns
+            UtilizationModelDynamic cpuUtilization = new UtilizationModelDynamic(0.3)
+                    .setMaxResourceUtilization(0.6 + (random.nextDouble() * 0.4));  // 60-100% max utilization
 
-            UtilizationModelDynamic ramUtilization = new UtilizationModelDynamic(0.1)
-                    .setMaxResourceUtilization(0.4 + (random.nextDouble() * 0.3));
+            UtilizationModelDynamic ramUtilization = new UtilizationModelDynamic(0.2)
+                    .setMaxResourceUtilization(0.5 + (random.nextDouble() * 0.5));  // 50-100% max utilization
 
-            UtilizationModelDynamic bwUtilization = new UtilizationModelDynamic(0.05)
-                    .setMaxResourceUtilization(0.3 + (random.nextDouble() * 0.2));
+            UtilizationModelDynamic bwUtilization = new UtilizationModelDynamic(0.1)
+                    .setMaxResourceUtilization(0.4 + (random.nextDouble() * 0.4));  // 40-80% max utilization
 
             Cloudlet cloudlet = new CloudletSimple(length, pes)
                     .setFileSize(fileSize)
@@ -147,16 +201,9 @@ public class CloudSimPlusSimulator {
     }
 
     private void collectResults() {
-        // Datacenter statistics
         List<DatacenterStats> datacenterStatsList = collectDatacenterStats();
-
-        // VM statistics
         List<VmStats> vmStatsList = collectVmStats();
-
-        // Cloudlet statistics
         List<CloudletStats> cloudletStatsList = collectCloudletStats();
-
-        // Summary
         SimulationSummary summary = createSimulationSummary();
 
         this.results = new SimulationResult(datacenterStatsList, vmStatsList, cloudletStatsList, summary);
