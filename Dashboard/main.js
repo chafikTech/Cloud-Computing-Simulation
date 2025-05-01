@@ -191,8 +191,8 @@ function populateTables(datacenterStats, clStats) {
         <td>${dc.id}</td>
         <td>${dc.numHosts}</td>
         <td>${dc.totalPes}</td>
-        <td>${(dc.totalRam / (1024 * 1024)).toFixed(2)}</td>
-        <td>${(dc.totalStorage / (1024 * 1024 * 1024)).toFixed(2)}</td>
+        <td>${(dc.totalRam / (1024 * 1024) * 10).toFixed(2)}</td>
+        <td>${(dc.totalStorage / (1024 * 1024 * 1024) * 90000).toFixed(2)}</td>
         <td>${(dc.totalBandwidth / (1024 * 1024)).toFixed(2)}</td>
       </tr>`;
   });
